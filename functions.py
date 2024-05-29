@@ -57,7 +57,7 @@ def compare_strongest_noes(df_intra, df_inter):
     noe_compare = (noes_intra.join(noes_inter, how='outer',
                                    lsuffix='_intra', rsuffix='_inter') \
                    .fillna(0).astype('int'))
-    return noe_compare.drop_duplicates()
+    return noe_compare.drop_duplicates() # Duplicates occur in Glycines with Ha1 and Ha2
 
 
 def get_n_anomalies(df_strong, df_weak):
