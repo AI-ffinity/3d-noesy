@@ -33,8 +33,8 @@ It it practically true though?
 
 **2LTM (107 residues)**
 
-'| Atom name   |   1st highest |   2nd highest |   3rd highest |   4th or lower |
+| Atom name   |   1st highest |   2nd highest |   3rd highest |   4th or lower |
 |:------------|--------------:|--------------:|--------------:|---------------:|
 | HA_i        |            14 |            40 |            22 |             10 |
 | HA_i-1      |            31 |            13 |            10 |             31 |
-| H_i-1       |            18 |             9 |             9 |             33 |'
+| H_i-1       |            18 |             9 |             9 |             33 |
