@@ -33,6 +33,12 @@ def tidy_list(df):
     df['resnum'] = df['res'].str.extract('(\d+)', expand=False).fillna(0).astype(int)
     df['noe_resnum'] = df['noe_res'].str.extract('(\d+)', expand=False).fillna(0).astype(int)
 
+    df['res_diff'] = df['resnum'] - df['noe_resnum']
+    df['atom_type'] = df['noe'].str.extract(r'(H[A-Za-z]?)')
+    df = df.assign(atom_type_pos=lambda s: s.atom_type + '_i-' + s.res_diff.astype('str'))
+    df['atom_type_pos'] = df.atom_type_pos.str.replace('--', '+')
+    df['atom_type_pos'] = df.atom_type_pos.str.replace('-0', '')
+
     return df
 
 
@@ -102,3 +108,56 @@ def get_anomalies(df_strong, df_weak):
         noe_compare['height_noe_intra'].apply(np.abs) < noe_compare['height_noe_inter'].apply(np.abs)])
 
     pass
+
+
+def get_atoms_w_strongest_noes(df):
+    """
+    Returns the counts of the atoms giving rise to the strongest NOEs
+    with their relative positions included into the atom name.
+    Arguments:
+        - df: the result of tidy_list() function above
+            (possibly filtered for backbone, diagonal, etc)
+    :return: DataFrame with columns "Atom type" and "count" (usually no longer than 20 rows)
+    """
+
+    idx_strongest_in_spinsys = df[['res', 'height']].groupby('res').idxmax() \
+        .height.to_list()
+
+    df_sss = df.loc[idx_strongest_in_spinsys, ['atom_type_pos']]
+
+    result = df_sss.atom_type_pos.value_counts()
+    result.index.name = ("Atom type")
+    return result.to_frame()
+
+
+def get_atom_rank_matrix(df, exclude_sc=False):
+    """Get the counts for how many times each of the
+    H_i-1, HA_i and HA_i-1 appear on
+    the 1st-3rd rank of NOE intensity
+    Arguments:
+        - df: the result of tidy_list() function above
+        - exclude_sc: whether only include NOEs to backbone protons (HA and Hn)
+                      and exclude sidechains for the rank calculation
+        """
+
+    if exclude_sc:
+        dfh = df.loc[df['atom_type'].isin(['HA', 'H']), ['res', 'atom_type_pos', 'height']]
+    else:
+        dfh = df.loc[:, ['res', 'atom_type_pos', 'height']]
+    dfh = dfh.drop_duplicates()  # This drops only the GlyHA(2,3) peaks which can not be distinguished
+
+    dfh['rank'] = dfh[['res', 'atom_type_pos', 'height']].groupby(['res'], as_index=False)["height"].rank(
+        method='dense', ascending=False)
+    dfh_bb = dfh.loc[dfh.atom_type_pos.isin(["HA_i", "HA_i-1", "H_i-1"])]
+    rank_counts = dfh_bb.groupby(['atom_type_pos', 'rank']).size().unstack(fill_value=0)
+    rank_counts.insert(3, "4+", rank_counts.iloc[:, 3:].sum(axis=1))
+    rank_counts = rank_counts.iloc[:, :4]
+    rank_counts.index.name = "Atom name"
+    rank_counts.columns = ["1st highest", "2nd highest", "3rd highest", "4th or lower"]
+    return rank_counts
+
+
+
+
+
+
