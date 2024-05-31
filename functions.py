@@ -42,6 +42,28 @@ def tidy_list(df):
     return df
 
 
+def convert_heights_to_relative(df):
+    """
+    Calculate relative NOE peak intensities for each spin system. Negates the effects of the
+    1) Overall dynamic of the residue; 2) Global scaling of signal intensity,
+    thereby allowing to include peaks from different spectra in one data set.
+
+    Arguments:
+        - df: the result of tidy_list() function above
+            (possibly filtered for backbone, diagonal, etc)
+    Returns:
+        - DataFrame of the same shape as df but with height ranging from 0 to 1 for each residue
+    """
+    ### df.loc[df.res_diff.abs() > 1, "atom_type_pos"] = df.loc[df.res_diff.abs() > 1, "atom_type"] + "_far"
+    max_height = df[['res', 'height']].groupby('res').transform('max')
+    # pandas makes strange complaints on the data types here, thus so many explicit type casting
+    df.loc[:, 'height'] = df['height'].astype('float')
+    df.loc[:, 'height'] = df['height'].astype('float64') / max_height['height'].astype('float64')
+
+    return df
+
+
+
 def compare_strongest_noes(df_intra, df_inter):
     """Get two lists of NOEs with inter- and intra-residual peaks and
     returns two height columns
@@ -64,34 +86,6 @@ def compare_strongest_noes(df_intra, df_inter):
                                    lsuffix='_intra', rsuffix='_inter') \
                    .fillna(0).astype('int'))
     return noe_compare.drop_duplicates() # Duplicates occur in Glycines with Ha1 and Ha2
-
-
-def get_n_anomalies(df_strong, df_weak):
-    """Calculates how many inter-residual NOEs are
-    more intense than the correlation Hn-N-Hnoe
-
-    Arguments:
-        - df_strong (DataFrame):  list of intra-residual NOE peaks, which are supposed to be the most intense (filtered by the NOE atom type)
-        - df_weak (DataFrame): list of inter-residual list of NOE peaks, which are assumed to be less intense (filtered by the NOE atom type, must be the same as in df_i)
-    Returns:
-        n_anomalies (int): number of the spin systems where the supposedly weak (inter-residual) NOE is actually
-                           stronger than the supposedly strong (intra-residual) NOE
-    """
-    noes_strong = df_strong[['height', 'res']].groupby('res', as_index=True).max('height')
-    noes_weak = df_weak[['height', 'res']].groupby('res', as_index=True).max('height')
-
-    noe_compare = noes_strong.join(noes_weak, how='left',
-                                   lsuffix='_noe_intra', rsuffix='_noe_inter').fillna(0)
-    n_anomalies = (noe_compare['height_noe_intra'].apply(np.abs)
-                   < noe_compare['height_noe_inter'].apply(np.abs)).sum()
-    print(n_anomalies)
-    if n_anomalies == 0:
-        print("Brilliant result, we have 0 deviations from the theory!")
-    # else:
-    #    print("There are some deviations, check those most prominent deviations closer:")
-    #    print(noe_compare.loc[
-    #              noe_compare['height_noe_intra'].apply(np.abs) < noe_compare['height_noe_inter'].apply(np.abs)])
-    return n_anomalies
 
 
 def get_anomalies(df_strong, df_weak):
@@ -130,7 +124,7 @@ def get_atoms_w_strongest_noes(df):
     return result.to_frame()
 
 
-def get_atom_rank_matrix(df, exclude_sc=False):
+def get_noe_ranks(df, exclude_sc=False):
     """Get the counts for how many times each of the
     H_i-1, HA_i and HA_i-1 appear on
     the 1st-3rd rank of NOE intensity
