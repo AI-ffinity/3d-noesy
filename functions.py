@@ -178,7 +178,7 @@ def get_atoms_w_strongest_noes(df):
     return result.to_frame()
 
 
-def get_noe_ranks(df, exclude_sc=False):
+def get_noe_ranks(df, query_atoms=["H_i", "H_i-1", "H_i+1"]):
     """Get the counts for how many times each of the
     H_i-1, HA_i and HA_i-1 appear on
     the 1st-3rd rank of NOE intensity
@@ -188,15 +188,12 @@ def get_noe_ranks(df, exclude_sc=False):
                       and exclude sidechains for the rank calculation
         """
 
-    if exclude_sc:
-        dfh = df.loc[df['atom_type'].isin(['HA', 'H']), ['res', 'atom_type_pos', 'height']]
-    else:
-        dfh = df.loc[:, ['res', 'atom_type_pos', 'height']]
+    dfh = df.loc[:, ['res', 'atom_type_pos', 'height']]
     dfh = dfh.drop_duplicates()  # This drops only the GlyHA(2,3) peaks which can not be distinguished
 
     dfh['rank'] = dfh[['res', 'atom_type_pos', 'height']].groupby(['res'], as_index=False)["height"].rank(
         method='dense', ascending=False)
-    dfh_bb = dfh.loc[dfh.atom_type_pos.isin(["HA_i", "HA_i-1", "H_i-1"])]
+    dfh_bb = dfh.loc[dfh.atom_type_pos.isin(query_atoms)]
     rank_counts = dfh_bb.groupby(['atom_type_pos', 'rank']).size().unstack(fill_value=0)
     rank_counts.insert(3, "4+", rank_counts.iloc[:, 3:].sum(axis=1))
     rank_counts = rank_counts.iloc[:, :4]
