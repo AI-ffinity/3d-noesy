@@ -15,7 +15,7 @@ def tidy_list(df):
     df.rename({
         'Assignment': 'label',
         'Data': 'height',
-        'w1': 'N',
+        'w1': 'X',
         'w2': 'Hn',
         'w3': 'H'
     }, axis=1, inplace=True)
@@ -40,6 +40,60 @@ def tidy_list(df):
     df['atom_type_pos'] = df.atom_type_pos.str.replace('-0', '')
 
     return df
+
+
+def concat_protein_data(pdb_ids, heteronucleus):
+    """
+    Unites all peak lists into one file
+    (NOTE: do not compare absolute heights between the peaks from diffferent spectra!)
+    :args: 
+    - pdb_ids: list of the PDB IDs of the proteins whose peaks have been read and stored under /data/ 
+    :returns: 
+    DataFrame: 14 columns, N rows equals to the total number of assigned residues
+    """
+
+    df = pd.DataFrame()
+    for pdb_id in pdb_ids:
+        path = f'data/{pdb_id}_{heteronucleus}.list'
+        df_ = pd.read_csv(path, header=0, index_col=None, sep='\s+')
+        df_ = tidy_list(df_)
+        df_.insert(0, 'pdb_id', pdb_id)
+        df = pd.concat((df, df_))
+        
+    return df
+    
+
+def is_sc_amide(row, aa_sidechain_protons):
+    """Meant to be used with .apply function"""
+    aa_type = row['noe_res'][0]
+    atom_id = row['atom_type']
+    return aa_type in aa_sidechain_protons and atom_id == aa_sidechain_protons[aa_type]
+    
+
+def select_all_amide_NOEs(df):
+    """Select all NOEs to amide protons for subsequent filtering
+    Atom labels are defined according to CYANA nomenclature - check carefully 
+    if the assignments follow it precisely! 
+    AA types are in short-letter notation 
+
+    :args: df (DataFrame) - the result of `tidy_list()`
+
+    :returns: Series of boolean values where True marks the sidechain amides 
+    """
+    # Check noe_res 
+
+    aa_sidechain_protons = {
+        'R': 'HH',
+        'N': 'HD',
+        'Q': 'HE',
+        'H': 'HD',
+        'K': 'HZ',
+        'W': 'HE',
+    }
+    #residues_w_sc_amides = df.noe_res.str.match(r'^[RNQHKW]')
+    
+    amide_mask = df.apply(lambda row: _is_sc_amide(row, aa_sidechain_protons), axis=1)
+    return amide_mask
 
 
 def convert_heights_to_relative(df):
