@@ -16,8 +16,8 @@ def tidy_list(df):
         'Assignment': 'label',
         'Data': 'height',
         'w1': 'X',
-        'w2': 'Hn',
-        'w3': 'H'
+        'w2': 'H',
+        'w3': 'Hnoe'
     }, axis=1, inplace=True)
 
     df.insert(0, 'noe', df.label.apply(lambda s: s.split('-')[-1]))
@@ -42,9 +42,9 @@ def tidy_list(df):
     return df
 
 
-def concat_protein_data(pdb_ids, heteronucleus):
+def concat_peak_lists(pdb_ids, heteronucleus):
     """
-    Unites all peak lists into one file
+    Unites all raw peak lists into one file with the processed lists
     (NOTE: do not compare absolute heights between the peaks from diffferent spectra!)
     :args: 
     - pdb_ids: list of the PDB IDs of the proteins whose peaks have been read and stored under /data/ 
